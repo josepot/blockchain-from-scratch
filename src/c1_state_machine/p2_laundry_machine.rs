@@ -9,7 +9,7 @@ use super::StateMachine;
 pub struct ClothesMachine;
 
 /// Models a piece of clothing throughout its lifecycle.
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub enum ClothesState {
     /// Clean clothes ready to be worn. With some given life left.
     Clean(u64),
@@ -40,7 +40,34 @@ impl StateMachine for ClothesMachine {
     type Transition = ClothesAction;
 
     fn next_state(starting_state: &ClothesState, t: &ClothesAction) -> ClothesState {
-        todo!("Exercise 3")
+        if starting_state == &ClothesState::Tattered {
+            return starting_state.clone();
+        }
+
+        let value: u64 = match starting_state {
+            ClothesState::Wet(x) => x.clone(),
+            ClothesState::Clean(x) => x.clone(),
+            ClothesState::Dirty(x) => x.clone(),
+            ClothesState::Tattered => 1 as u64,
+        } - 1;
+
+        if value == 0 {
+            return ClothesState::Tattered;
+        }
+
+        match t {
+            ClothesAction::Wash => ClothesState::Wet(value),
+            ClothesAction::Dry => match starting_state {
+                ClothesState::Wet(_) => ClothesState::Clean(value),
+                ClothesState::Clean(_) => ClothesState::Clean(value),
+                _ => ClothesState::Dirty(value),
+            },
+            ClothesAction::Wear => match starting_state {
+                ClothesState::Wet(_) => ClothesState::Dirty(value),
+                ClothesState::Clean(_) => ClothesState::Dirty(value),
+                _ => ClothesState::Dirty(value),
+            },
+        }
     }
 }
 

@@ -2,7 +2,7 @@
 //! The atm may fail to give you cash if it is empty or you haven't swiped your card, or you have
 //! entered the wrong pin.
 
-use super::StateMachine;
+use super::{p5_digital_cash::State, p6_open_ended::Transition, StateMachine};
 
 /// The keys on the ATM keypad
 #[derive(Hash, Debug, PartialEq, Eq, Clone)]
@@ -58,7 +58,16 @@ impl StateMachine for Atm {
     type Transition = Action;
 
     fn next_state(starting_state: &Self::State, t: &Self::Transition) -> Self::State {
-        todo!("Exercise 4")
+        let mut result = starting_state.clone();
+
+        match (&starting_state.expected_pin_hash, t) {
+            (Auth::Waiting, Action::SwipeCard(pin)) => {
+                result.expected_pin_hash = Auth::Authenticating(*pin);
+            }
+            _ => {}
+        };
+
+        result
     }
 }
 

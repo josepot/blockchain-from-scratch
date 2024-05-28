@@ -2,6 +2,10 @@
 //! The atm may fail to give you cash if it is empty or you haven't swiped your card, or you have
 //! entered the wrong pin.
 
+use std::usize;
+
+use crate::hash;
+
 use super::{p5_digital_cash::State, p6_open_ended::Transition, StateMachine};
 
 /// The keys on the ATM keypad
@@ -63,6 +67,46 @@ impl StateMachine for Atm {
         match (&starting_state.expected_pin_hash, t) {
             (Auth::Waiting, Action::SwipeCard(pin)) => {
                 result.expected_pin_hash = Auth::Authenticating(*pin);
+            }
+            (Auth::Authenticating(pin), Action::PressKey(key)) => {
+                if key != &Key::Enter {
+                    result.keystroke_register.push(key.clone());
+                    return result;
+                }
+
+                if pin == &crate::hash(&result.keystroke_register) {
+                    result.expected_pin_hash = Auth::Authenticated;
+                } else {
+                    result.expected_pin_hash = Auth::Waiting;
+                }
+                result.keystroke_register = vec![];
+            }
+            (Auth::Authenticated, Action::PressKey(key)) => {
+                if key != &Key::Enter {
+                    result.keystroke_register.push(key.clone());
+                    return result;
+                }
+
+                let amount = result
+                    .keystroke_register
+                    .iter()
+                    .map(|key| match key {
+                        Key::One => 1,
+                        Key::Two => 2,
+                        Key::Three => 3,
+                        Key::Four => 4,
+                        _ => 0,
+                    })
+                    .enumerate()
+                    .fold(0 as u64, |acc, (idx, val)| {
+                        acc + (val * u64::pow(10, idx as u32))
+                    });
+
+                if result.cash_inside >= amount {
+                    result.cash_inside -= amount;
+                }
+                result.keystroke_register = vec![];
+                result.expected_pin_hash = Auth::Waiting;
             }
             _ => {}
         };
